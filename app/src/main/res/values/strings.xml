@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">零股均價</string>
+    <string name="svc_label">零股均價・持股讀取</string>
+    <string name="svc_desc">只在你按下「一鍵匯入持股」後，讀取投資先生庫存頁上的股票、股數與均價，並自動捲動頁面。不會讀取其他 App，也不會上傳任何資料。</string>
+</resources>
