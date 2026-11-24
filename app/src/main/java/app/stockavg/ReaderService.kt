@@ -35,6 +35,8 @@ class ReaderService : AccessibilityService() {
     companion object {
         @Volatile
         var instance: ReaderService? = null
+        private const val OV_RED = 0xE6E5303B.toInt()
+        private const val OV_GREEN = 0xE62FB35E.toInt()
     }
 
     private val h = Handler(Looper.getMainLooper())
@@ -48,6 +50,7 @@ class ReaderService : AccessibilityService() {
     private var lastSig = ""
     private var gen = 0
     private var overlayLp: WindowManager.LayoutParams? = null
+    private var overlayBg: GradientDrawable? = null
     private var tapAction: (() -> Unit)? = null
     private var ovX = 0
     private var ovY = -1
@@ -76,7 +79,7 @@ class ReaderService : AccessibilityService() {
         scanPending = false
         busy = false
         RowParser.reset()
-        showOverlay("自動辨識庫存頁", null)
+        showOverlay("自動辨識庫存頁")
         val g = gen
         h.postDelayed({
             if (g == gen && Store.importing(this) && phase == 0) {
@@ -157,7 +160,7 @@ class ReaderService : AccessibilityService() {
             found[x.key] = x
         }
         ImportBus.state.value = ImportState.Reading(found.size)
-        showOverlay("辨識中 ${found.size} 檔", null)
+        showOverlay("辨識中 ${found.size} 檔")
 
         noNew = if (added == 0) noNew + 1 else 0
         if (noNew >= 2 || scrolls >= 30) {
@@ -190,7 +193,7 @@ class ReaderService : AccessibilityService() {
         Store.setImporting(this, false)
         phase = 0
         ImportBus.state.value = ImportState.Done(list.size)
-        showOverlay("✓ 已匯入成功・${list.size} 檔") { backToApp(); removeOverlay() }
+        showOverlay("✓ 已匯入成功・${list.size} 檔", OV_GREEN) { backToApp(); removeOverlay() }
         Toast.makeText(this, "已匯入成功（${list.size} 檔）", Toast.LENGTH_LONG).show()
         backToApp()
         val g = gen
@@ -202,7 +205,7 @@ class ReaderService : AccessibilityService() {
         phase = 0
         busy = false
         ImportBus.state.value = ImportState.Failed(msg)
-        showOverlay("匯入失敗") { backToApp(); removeOverlay() }
+        showOverlay("匯入失敗", OV_RED) { backToApp(); removeOverlay() }
         backToApp()
         val g = gen
         h.postDelayed({ if (g == gen) removeOverlay() }, 8_000)
@@ -338,7 +341,7 @@ class ReaderService : AccessibilityService() {
     }
 
     // ---------- 浮動提示（可拖曳；辨識中點擊無作用，避免誤觸） ----------
-    private fun showOverlay(text: String, onTap: (() -> Unit)?) {
+    private fun showOverlay(text: String, color: Int = OV_RED, onTap: (() -> Unit)? = null) {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val d = resources.displayMetrics.density
         tapAction = onTap
@@ -346,12 +349,14 @@ class ReaderService : AccessibilityService() {
         if (v == null) {
             v = TextView(this)
             v.setTextColor(0xFFFFFFFF.toInt())
+            v.typeface = android.graphics.Typeface.DEFAULT_BOLD
             v.textSize = 12f
             v.maxLines = 1
             v.gravity = Gravity.CENTER
             val bg = GradientDrawable()
             bg.cornerRadius = 20 * d
-            bg.setColor(0xCC1A1F2B.toInt())
+            bg.setColor(color)
+            overlayBg = bg
             bg.setStroke((1 * d).toInt().coerceAtLeast(1), 0x66FFFFFF)
             v.background = bg
             v.setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
@@ -410,6 +415,7 @@ class ReaderService : AccessibilityService() {
             overlay = v
         }
         v.text = text
+        overlayBg?.setColor(color)
     }
 
     private fun removeOverlay() {
@@ -420,5 +426,6 @@ class ReaderService : AccessibilityService() {
         }
         overlay = null
         overlayLp = null
+        overlayBg = null
     }
 }
