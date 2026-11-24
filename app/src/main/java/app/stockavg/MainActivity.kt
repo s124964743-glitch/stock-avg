@@ -97,8 +97,7 @@ fun App(tick: Int, resumed: Boolean) {
     var holdings by remember { mutableStateOf(Store.load(ctx)) }
     var svcOn by remember { mutableStateOf(Importer.serviceEnabled(ctx)) }
     var selKey by rememberSaveable { mutableStateOf("") }
-    var s0 by rememberSaveable { mutableStateOf("") }
-    var a0 by rememberSaveable { mutableStateOf("") }
+    var s1Edited by rememberSaveable { mutableStateOf(false) }
     var p1 by rememberSaveable { mutableStateOf("") }
     var s1 by rememberSaveable { mutableStateOf("") }
     var tgt by rememberSaveable { mutableStateOf("") }
@@ -117,10 +116,11 @@ fun App(tick: Int, resumed: Boolean) {
     var follow by rememberSaveable { mutableStateOf(true) }
 
     fun pick(h: Holding) {
-        if (selKey != h.key) follow = true
+        if (selKey != h.key) {
+            follow = true
+            s1Edited = false
+        }
         selKey = h.key
-        s0 = h.shares.toString()
-        a0 = plain(h.avg)
     }
 
     LaunchedEffect(tick) {
@@ -128,10 +128,7 @@ fun App(tick: Int, resumed: Boolean) {
         svcOn = Importer.serviceEnabled(ctx)
     }
     LaunchedEffect(holdings) {
-        if (holdings.isNotEmpty()) {
-            val cur = holdings.firstOrNull { it.key == selKey }
-            if (cur != null) pick(cur) else if (selKey.isEmpty()) pick(holdings[0])
-        }
+        if (holdings.isNotEmpty() && holdings.none { it.key == selKey }) pick(holdings[0])
     }
     LaunchedEffect(st) {
         if (st is ImportState.Done) {
@@ -175,6 +172,10 @@ fun App(tick: Int, resumed: Boolean) {
     // 買進價格跟隨即時價（按不按試算都一樣，隨時更新）
     val selH = holdings.firstOrNull { it.key == selKey }
     val live = selH?.let { prices[it.code] }
+    // 買進股數預設 = 目前持有股數（自己改過就不再自動帶入）
+    LaunchedEffect(selKey, selH?.shares) {
+        if (!s1Edited) s1 = selH?.shares?.toString() ?: ""
+    }
     LaunchedEffect(live?.price, follow, selKey) {
         if (follow && live != null) p1 = plain(live.price)
     }
@@ -197,8 +198,8 @@ fun App(tick: Int, resumed: Boolean) {
     }
 
     // ---- 計算 ----
-    val S0 = s0.d() ?: 0.0
-    val A0 = a0.d() ?: 0.0
+    val S0 = (selH?.shares ?: 0L).toDouble()
+    val A0 = selH?.avg ?: 0.0
     val P = p1.d()
     val X = s1.d()
     val D = disc.d() ?: 10.0
@@ -220,29 +221,14 @@ fun App(tick: Int, resumed: Boolean) {
 
         // ---- 匯入 ----
         Glass(Modifier.fillMaxWidth(), strong = true) {
-            val status = when (val s = st) {
-                is ImportState.Waiting -> "已打開投資先生。請登入並進入「庫存」頁，我會自動辨識。"
-                is ImportState.Reading -> "辨識中，已讀到 ${s.n} 檔…"
-                is ImportState.Done -> "已匯入成功，共 ${s.n} 檔。"
-                is ImportState.Failed -> s.msg
-                else -> if (!svcOn) "第一次使用需要開啟「無障礙」權限（只用來讀投資先生的庫存頁）。"
-                else "打開投資先生 → 登入 → 進入庫存頁，剩下交給我。"
+            val busyImport = st is ImportState.Waiting || st is ImportState.Reading
+            val label = when (val x = st) {
+                is ImportState.Waiting -> "等待庫存頁…　點此取消"
+                is ImportState.Reading -> "辨識中 ${x.n} 檔…　點此取消"
+                else -> "一鍵匯入持股"
             }
-            Text("從投資先生匯入", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            Text(status, color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp)
-            val last = Store.lastImport(ctx)
-            if (last > 0 && st !is ImportState.Waiting && st !is ImportState.Reading) {
-                Text(
-                    "上次匯入：" + SimpleDateFormat("MM/dd HH:mm", Locale.TAIWAN).format(Date(last)),
-                    color = Color.White.copy(alpha = 0.45f), fontSize = 12.sp,
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            if (st is ImportState.Waiting || st is ImportState.Reading) {
-                GlassButton("取消", Modifier.fillMaxWidth()) { Importer.cancel(ctx) }
-            } else {
-                GlassButton("一鍵匯入持股", Modifier.fillMaxWidth(), primary = true) {
+            GlassButton(label, Modifier.fillMaxWidth().height(58.dp), primary = !busyImport) {
+                if (busyImport) Importer.cancel(ctx) else {
                     ImportBus.state.value = ImportState.Idle
                     startImport()
                 }
@@ -298,15 +284,16 @@ fun App(tick: Int, resumed: Boolean) {
         // ---- 計算機 ----
         Glass(Modifier.fillMaxWidth()) {
             Text("加碼試算", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GField("持有股數", s0, { s0 = it }, Modifier.weight(1f), KeyboardType.Number)
-                GField("目前均價", a0, { a0 = it }, Modifier.weight(1f))
+            if (selH != null) {
+                Text(
+                    "${selH.title}　持有 ${String.format(Locale.US, "%,d", selH.shares)} 股　均價 ${f2(selH.avg)}",
+                    color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp,
+                )
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GField("買進股數", s1, { s1 = it; s1Edited = true }, Modifier.weight(1f), KeyboardType.Number)
                 GField("買進價格", p1, { p1 = it; follow = false }, Modifier.weight(1f))
-                GField("買進股數", s1, { s1 = it }, Modifier.weight(1f), KeyboardType.Number)
             }
             Row(
                 Modifier
