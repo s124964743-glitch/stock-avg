@@ -13,6 +13,8 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Display
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -45,6 +47,10 @@ class ReaderService : AccessibilityService() {
     private var busy = false
     private var lastSig = ""
     private var gen = 0
+    private var overlayLp: WindowManager.LayoutParams? = null
+    private var tapAction: (() -> Unit)? = null
+    private var ovX = 0
+    private var ovY = -1
 
     private val recognizer by lazy { TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build()) }
 
@@ -70,7 +76,7 @@ class ReaderService : AccessibilityService() {
         scanPending = false
         busy = false
         RowParser.reset()
-        showOverlay("請登入投資先生並進入「庫存」頁\n我會自動辨識（點此取消）") { Importer.cancel(this); backToApp() }
+        showOverlay("自動辨識庫存頁", null)
         val g = gen
         h.postDelayed({
             if (g == gen && Store.importing(this) && phase == 0) {
@@ -151,7 +157,7 @@ class ReaderService : AccessibilityService() {
             found[x.key] = x
         }
         ImportBus.state.value = ImportState.Reading(found.size)
-        showOverlay("辨識中…已讀到 ${found.size} 檔\n（點此取消）") { Importer.cancel(this); backToApp() }
+        showOverlay("辨識中 ${found.size} 檔", null)
 
         noNew = if (added == 0) noNew + 1 else 0
         if (noNew >= 2 || scrolls >= 30) {
@@ -184,7 +190,7 @@ class ReaderService : AccessibilityService() {
         Store.setImporting(this, false)
         phase = 0
         ImportBus.state.value = ImportState.Done(list.size)
-        showOverlay("✓ 已匯入成功・${list.size} 檔\n點此回到均價計算機") { backToApp(); removeOverlay() }
+        showOverlay("✓ 已匯入成功・${list.size} 檔") { backToApp(); removeOverlay() }
         Toast.makeText(this, "已匯入成功（${list.size} 檔）", Toast.LENGTH_LONG).show()
         backToApp()
         val g = gen
@@ -196,7 +202,7 @@ class ReaderService : AccessibilityService() {
         phase = 0
         busy = false
         ImportBus.state.value = ImportState.Failed(msg)
-        showOverlay("匯入失敗\n點此回到均價計算機") { backToApp(); removeOverlay() }
+        showOverlay("匯入失敗") { backToApp(); removeOverlay() }
         backToApp()
         val g = gen
         h.postDelayed({ if (g == gen) removeOverlay() }, 8_000)
@@ -331,22 +337,24 @@ class ReaderService : AccessibilityService() {
         return out
     }
 
-    // ---------- 浮動提示 ----------
-    private fun showOverlay(text: String, onTap: () -> Unit) {
+    // ---------- 浮動提示（可拖曳；辨識中點擊無作用，避免誤觸） ----------
+    private fun showOverlay(text: String, onTap: (() -> Unit)?) {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val d = resources.displayMetrics.density
+        tapAction = onTap
         var v = overlay
         if (v == null) {
             v = TextView(this)
             v.setTextColor(0xFFFFFFFF.toInt())
-            v.textSize = 14f
+            v.textSize = 12f
+            v.maxLines = 1
             v.gravity = Gravity.CENTER
             val bg = GradientDrawable()
-            bg.cornerRadius = 28 * d
-            bg.setColor(0xE61A1F2B.toInt())
+            bg.cornerRadius = 20 * d
+            bg.setColor(0xCC1A1F2B.toInt())
             bg.setStroke((1 * d).toInt().coerceAtLeast(1), 0x66FFFFFF)
             v.background = bg
-            v.setPadding((18 * d).toInt(), (10 * d).toInt(), (18 * d).toInt(), (10 * d).toInt())
+            v.setPadding((12 * d).toInt(), (6 * d).toInt(), (12 * d).toInt(), (6 * d).toInt())
             val lp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -355,7 +363,45 @@ class ReaderService : AccessibilityService() {
                 PixelFormat.TRANSLUCENT,
             )
             lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            lp.y = (56 * d).toInt()
+            lp.x = ovX
+            lp.y = if (ovY >= 0) ovY else (40 * d).toInt()
+            overlayLp = lp
+            v.setOnTouchListener(object : View.OnTouchListener {
+                var sx = 0f
+                var sy = 0f
+                var ox = 0
+                var oy = 0
+                var moved = false
+                override fun onTouch(view: View, e: MotionEvent): Boolean {
+                    val l = overlayLp ?: return false
+                    when (e.actionMasked) {
+                        MotionEvent.ACTION_DOWN -> {
+                            sx = e.rawX
+                            sy = e.rawY
+                            ox = l.x
+                            oy = l.y
+                            moved = false
+                        }
+                        MotionEvent.ACTION_MOVE -> {
+                            val dx = (e.rawX - sx).toInt()
+                            val dy = (e.rawY - sy).toInt()
+                            if (abs(dx) > 12 || abs(dy) > 12) moved = true
+                            if (moved) {
+                                l.x = ox + dx
+                                l.y = (oy + dy).coerceAtLeast(0)
+                                ovX = l.x
+                                ovY = l.y
+                                try {
+                                    wm.updateViewLayout(view, l)
+                                } catch (_: Exception) {
+                                }
+                            }
+                        }
+                        MotionEvent.ACTION_UP -> if (!moved) tapAction?.invoke()
+                    }
+                    return true
+                }
+            })
             try {
                 wm.addView(v, lp)
             } catch (_: Exception) {
@@ -364,7 +410,6 @@ class ReaderService : AccessibilityService() {
             overlay = v
         }
         v.text = text
-        v.setOnClickListener { onTap() }
     }
 
     private fun removeOverlay() {
@@ -374,5 +419,6 @@ class ReaderService : AccessibilityService() {
         } catch (_: Exception) {
         }
         overlay = null
+        overlayLp = null
     }
 }
