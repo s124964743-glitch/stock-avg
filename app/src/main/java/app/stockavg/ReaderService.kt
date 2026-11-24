@@ -374,7 +374,7 @@ class ReaderService : AccessibilityService() {
             )
             lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             lp.x = ovX
-            lp.y = if (ovY >= 0) ovY else (40 * d).toInt()
+            lp.y = if (ovY >= 0) ovY else (130 * d).toInt()
             overlayLp = lp
             v.setOnTouchListener(object : View.OnTouchListener {
                 var sx = 0f
@@ -433,7 +433,7 @@ class ReaderService : AccessibilityService() {
         )
         val band = 150f * resources.displayMetrics.density
         val a = ValueAnimator.ofFloat(0f, 1f)
-        a.duration = 1600
+        a.duration = 2500
         a.repeatCount = ValueAnimator.INFINITE
         a.interpolator = LinearInterpolator()
         a.addUpdateListener {

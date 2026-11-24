@@ -306,7 +306,7 @@ fun ShimmerText(text: String, modifier: Modifier = Modifier, fontSize: androidx.
     val x by tr.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1600, easing = LinearEasing)),
+        animationSpec = infiniteRepeatable(tween(2500, easing = LinearEasing)),
         label = "shimmerX",
     )
     val band = 420f
