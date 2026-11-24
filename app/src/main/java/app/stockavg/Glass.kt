@@ -46,12 +46,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
@@ -268,7 +270,7 @@ fun Glass(
 }
 
 @Composable
-fun GlassButton(text: String, modifier: Modifier = Modifier, primary: Boolean = false, onClick: () -> Unit) {
+fun GlassButton(text: String, modifier: Modifier = Modifier, primary: Boolean = false, shimmer: Boolean = false, onClick: () -> Unit) {
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
     val sc by animateFloatAsState(
@@ -291,9 +293,33 @@ fun GlassButton(text: String, modifier: Modifier = Modifier, primary: Boolean = 
             Modifier.padding(horizontal = 22.dp, vertical = 14.dp).align(Alignment.Center),
             contentAlignment = Alignment.Center,
         ) {
-            Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            if (shimmer) ShimmerText(text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            else Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
     }
+}
+
+/** 彩色流光文字（shimmer）：一條彩虹漸層從左掃到右，不斷循環。 */
+@Composable
+fun ShimmerText(text: String, modifier: Modifier = Modifier, fontSize: androidx.compose.ui.unit.TextUnit, fontWeight: FontWeight) {
+    val tr = rememberInfiniteTransition(label = "shimmer")
+    val x by tr.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1600, easing = LinearEasing)),
+        label = "shimmerX",
+    )
+    val band = 420f
+    val brush = Brush.linearGradient(
+        colors = listOf(
+            Color(0xFFFFFFFF), Color(0xFFFF7AD9), Color(0xFFFFE066),
+            Color(0xFF6EF3FF), Color(0xFF9D8CFF), Color(0xFFFFFFFF),
+        ),
+        start = Offset(x * band, 0f),
+        end = Offset(x * band + band, 0f),
+        tileMode = TileMode.Repeated,
+    )
+    Text(text, modifier, fontSize = fontSize, fontWeight = fontWeight, style = TextStyle(brush = brush))
 }
 
 @Composable

@@ -228,7 +228,7 @@ fun App(tick: Int, resumed: Boolean) {
                 is ImportState.Reading -> "辨識中 ${x.n} 檔…　點此取消"
                 else -> "一鍵匯入持股"
             }
-            GlassButton(label, Modifier.fillMaxWidth().height(58.dp), primary = !busyImport) {
+            GlassButton(label, Modifier.fillMaxWidth().height(58.dp), primary = !busyImport, shimmer = busyImport) {
                 if (busyImport) Importer.cancel(ctx) else {
                     ImportBus.state.value = ImportState.Idle
                     startImport()

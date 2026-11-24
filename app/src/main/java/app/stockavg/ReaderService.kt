@@ -1,9 +1,12 @@
 package app.stockavg
 
 import android.accessibilityservice.AccessibilityService
+import android.animation.ValueAnimator
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.Rect
@@ -17,6 +20,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.animation.LinearInterpolator
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.TextView
 import android.widget.Toast
@@ -51,6 +55,7 @@ class ReaderService : AccessibilityService() {
     private var gen = 0
     private var overlayLp: WindowManager.LayoutParams? = null
     private var overlayBg: GradientDrawable? = null
+    private var shimmer: ValueAnimator? = null
     private var tapAction: (() -> Unit)? = null
     private var ovX = 0
     private var ovY = -1
@@ -416,10 +421,40 @@ class ReaderService : AccessibilityService() {
         }
         v.text = text
         overlayBg?.setColor(color)
+        if (onTap == null) startShimmer(v) else stopShimmer(v)
+    }
+
+    /** 彩色流光文字：彩虹漸層從左掃到右循環。 */
+    private fun startShimmer(v: TextView) {
+        if (shimmer != null) return
+        val colors = intArrayOf(
+            0xFFFFFFFF.toInt(), 0xFFFF7AD9.toInt(), 0xFFFFE066.toInt(),
+            0xFF6EF3FF.toInt(), 0xFF9D8CFF.toInt(), 0xFFFFFFFF.toInt(),
+        )
+        val band = 150f * resources.displayMetrics.density
+        val a = ValueAnimator.ofFloat(0f, 1f)
+        a.duration = 1600
+        a.repeatCount = ValueAnimator.INFINITE
+        a.interpolator = LinearInterpolator()
+        a.addUpdateListener {
+            val x = (it.animatedValue as Float) * band
+            v.paint.shader = LinearGradient(x, 0f, x + band, 0f, colors, null, Shader.TileMode.REPEAT)
+            v.invalidate()
+        }
+        a.start()
+        shimmer = a
+    }
+
+    private fun stopShimmer(v: TextView?) {
+        shimmer?.cancel()
+        shimmer = null
+        v?.paint?.shader = null
+        v?.invalidate()
     }
 
     private fun removeOverlay() {
         val v = overlay ?: return
+        stopShimmer(v)
         try {
             (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(v)
         } catch (_: Exception) {
