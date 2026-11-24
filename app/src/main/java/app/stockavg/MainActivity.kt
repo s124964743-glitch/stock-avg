@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -319,7 +320,18 @@ fun App(tick: Int, resumed: Boolean) {
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("手續費算進成本", modifier = Modifier.weight(1f), fontSize = 14.sp)
-                Switch(checked = feeOn, onCheckedChange = { feeOn = it })
+                Switch(
+                    checked = feeOn,
+                    onCheckedChange = { feeOn = it },
+                    colors = SwitchDefaults.colors(
+                        checkedTrackColor = Color(0xFF34C759),
+                        checkedThumbColor = Color.White,
+                        checkedBorderColor = Color.Transparent,
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.22f),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedBorderColor = Color.Transparent,
+                    ),
+                )
             }
             if (feeOn) {
                 GField("手續費折數（6 = 6折）", disc, { disc = it }, Modifier.fillMaxWidth())
