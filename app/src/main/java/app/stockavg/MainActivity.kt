@@ -217,7 +217,7 @@ fun App(tick: Int, resumed: Boolean) {
     ) {
         Column(Modifier.padding(horizontal = 4.dp)) {
             Text("零股均價", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text("加碼前先算一下，均價會到哪裡", color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp)
+            Text("加碼前先算一下，均價會到哪裡", color = Color.White.copy(alpha = 0.84f), fontSize = 14.sp)
         }
 
         // ---- 匯入 ----
@@ -248,7 +248,7 @@ fun App(tick: Int, resumed: Boolean) {
                 )
             }
             if (holdings.isEmpty()) {
-                Text("還沒有持股。按上面的「一鍵匯入持股」，或手動新增。", color = Color.White.copy(alpha = 0.55f), fontSize = 14.sp)
+                Text("還沒有持股。按上面的「一鍵匯入持股」，或手動新增。", color = Color.White.copy(alpha = 0.80f), fontSize = 14.sp)
             }
             holdings.forEach { h ->
                 val sel = h.key == selKey
@@ -263,10 +263,10 @@ fun App(tick: Int, resumed: Boolean) {
                     Column(Modifier.weight(1f)) {
                         Text(
                             h.title, fontSize = 16.sp,
-                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
+                            fontWeight = if (sel) FontWeight.Bold else FontWeight.SemiBold,
                             color = if (sel) Accent else Color.White,
                         )
-                        Text("${String.format(Locale.US, "%,d", h.shares)} 股　均價 ${f2(h.avg)}", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                        Text("${String.format(Locale.US, "%,d", h.shares)} 股　均價 ${f2(h.avg)}", color = Color.White.copy(alpha = 0.84f), fontSize = 13.sp)
                         val q = prices[h.code]
                         if (q != null && h.avg > 0) {
                             val pct = (q.price - h.avg) / h.avg * 100
@@ -276,7 +276,7 @@ fun App(tick: Int, resumed: Boolean) {
                             )
                         }
                     }
-                    Text("✕", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp,
+                    Text("✕", color = Color.White.copy(alpha = 0.72f), fontSize = 16.sp,
                         modifier = Modifier.clickable { delKey = h.key; dlg = "del" }.padding(10.dp))
                 }
             }
@@ -288,7 +288,7 @@ fun App(tick: Int, resumed: Boolean) {
             if (selH != null) {
                 Text(
                     "${selH.title}　持有 ${String.format(Locale.US, "%,d", selH.shares)} 股　均價 ${f2(selH.avg)}",
-                    color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp,
+                    color = Color.White.copy(alpha = 0.84f), fontSize = 13.sp,
                 )
             }
             Spacer(Modifier.height(10.dp))
@@ -315,7 +315,7 @@ fun App(tick: Int, resumed: Boolean) {
                 }
                 Text(
                     (if (follow) "● 跟隨即時價" else "○ 手動價格（點此改回跟隨即時價）") + tail,
-                    color = if (follow) Good else Color.White.copy(alpha = 0.6f), fontSize = 13.sp,
+                    color = if (follow) Good else Color.White.copy(alpha = 0.84f), fontSize = 13.sp,
                 )
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -339,7 +339,7 @@ fun App(tick: Int, resumed: Boolean) {
             Spacer(Modifier.height(14.dp))
 
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("加碼後新均價", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                Text("加碼後新均價", color = Color.White.copy(alpha = 0.84f), fontSize = 13.sp)
                 Text(if (r != null) f2(r.avg) else "—", fontSize = 46.sp, fontWeight = FontWeight.Bold)
                 if (r != null && S0 > 0 && A0 > 0) {
                     val dv = r.avg - A0
@@ -400,10 +400,10 @@ fun App(tick: Int, resumed: Boolean) {
 
         // ---- 進階 ----
         Glass(Modifier.fillMaxWidth()) {
-            Text("辨識不到持股？", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text("辨識不到持股？", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             Text(
                 "按「一鍵匯入持股」進到庫存頁後回來，複製畫面資料貼給開發者，就能對準你的畫面調整辨識。",
-                color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.80f), fontSize = 13.sp,
             )
             Spacer(Modifier.height(8.dp))
             GlassButton("複製最近一次讀到的畫面資料", Modifier.fillMaxWidth()) {
@@ -415,7 +415,7 @@ fun App(tick: Int, resumed: Boolean) {
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text("持股資料只存在這支手機；網路只用來查即時股價（只送出股票代號）。", color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp)
+            Text("持股資料只存在這支手機；網路只用來查即時股價（只送出股票代號）。", color = Color.White.copy(alpha = 0.68f), fontSize = 12.sp)
         }
         Spacer(Modifier.height(20.dp))
     }
@@ -444,7 +444,7 @@ fun App(tick: Int, resumed: Boolean) {
                     "2. 如果開關是灰色、提示「受限制的設定」：回到手機「設定 → 應用程式 → 零股均價」，" +
                     "右上角 ⋮ 選「允許受限制的設定」，再回來開啟。\n\n" +
                     "只在你按「一鍵匯入持股」時才會讀取，而且只讀投資先生的庫存頁。",
-                fontSize = 14.sp, color = Color.White.copy(alpha = 0.85f),
+                fontSize = 14.sp, color = Color.White.copy(alpha = 0.96f),
             )
             Spacer(Modifier.height(14.dp))
             GlassButton("前往無障礙設定", Modifier.fillMaxWidth(), primary = true) {
@@ -522,7 +522,7 @@ fun App(tick: Int, resumed: Boolean) {
 @Composable
 private fun KV(k: String, v: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-        Text(k, Modifier.weight(1f), color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp)
-        Text(v, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(k, Modifier.weight(1f), color = Color.White.copy(alpha = 0.84f), fontSize = 14.sp)
+        Text(v, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }

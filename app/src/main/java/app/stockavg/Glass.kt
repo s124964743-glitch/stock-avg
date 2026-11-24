@@ -63,11 +63,11 @@ import androidx.compose.ui.window.Dialog
 import kotlin.math.cos
 import kotlin.math.sin
 
-val Accent = Color(0xFF8FB5FF)
-val Good = Color(0xFF3ECF8E)
-val Bad = Color(0xFFFF6B64)
-val Up = Color(0xFFFF5A64)   // 台股：漲 = 紅
-val Down = Color(0xFF2ED47A) // 台股：跌 = 綠
+val Accent = Color(0xFFA8C6FF)
+val Good = Color(0xFF2BE38C)
+val Bad = Color(0xFFFF4D4D)
+val Up = Color(0xFFFF3B47)   // 台股：漲 = 紅
+val Down = Color(0xFF1FE07F) // 台股：跌 = 綠
 
 /**
  * 仿 iOS「Liquid Glass」：
@@ -114,16 +114,16 @@ half4 main(float2 fc) {
     float3 col = float3(c0.r, c1.g, c2.b);
 
     float lum = dot(col, float3(0.299, 0.587, 0.114));
-    col = mix(float3(lum), col, 1.4);
-    col = col * 1.15 + tint.rgb * tint.a;
+    col = mix(float3(lum), col, 1.0);
+    col = col * 0.70 + tint.rgb * tint.a;
 
     float2 L = normalize(float2(-0.75, -0.65));
     float facing = dot(n, L);
     float rim = pow(edge, 3.0);
-    float spec = rim * (0.85 * max(facing, 0.0) + 0.35 * max(-facing, 0.0));
+    float spec = rim * (0.40 * max(facing, 0.0) + 0.16 * max(-facing, 0.0));
     float line = 1.0 - smoothstep(0.0, 1.8 * dpx, abs(sd + 1.1 * dpx));
-    spec += line * (0.28 + 0.55 * max(facing, 0.0));
-    float sheen = 0.08 * (1.0 - smoothstep(0.0, 0.55, fc.y / size.y));
+    spec += line * (0.14 + 0.26 * max(facing, 0.0));
+    float sheen = 0.02 * (1.0 - smoothstep(0.0, 0.55, fc.y / size.y));
     col += float3(spec + sheen);
 
     col = clamp(col, float3(0.0), float3(1.0));
@@ -151,12 +151,12 @@ fun DrawScope.drawField(w: Float, h: Float, t: Float) {
             center = Offset(cx, cy),
         )
     }
-    orb(Color(0xFF6E56FF), w * (0.12f + 0.12f * sin(a)), h * (0.10f + 0.04f * cos(a)), w * 0.95f, 0.60f)
-    orb(Color(0xFF00C2FF), w * (0.92f + 0.07f * cos(a + 1f)), h * (0.34f + 0.05f * sin(a + 2f)), w * 0.85f, 0.50f)
-    orb(Color(0xFFFF4FD8), w * (0.18f + 0.10f * sin(a + 3f)), h * (0.62f + 0.04f * cos(a + 1f)), w * 0.90f, 0.50f)
-    orb(Color(0xFF3B6BFF), w * (0.85f + 0.07f * sin(a + 4f)), h * (0.92f + 0.03f * cos(a)), w * 0.95f, 0.55f)
+    orb(Color(0xFF6E56FF), w * (0.12f + 0.12f * sin(a)), h * (0.10f + 0.04f * cos(a)), w * 0.95f, 0.36f)
+    orb(Color(0xFF00C2FF), w * (0.92f + 0.07f * cos(a + 1f)), h * (0.34f + 0.05f * sin(a + 2f)), w * 0.85f, 0.30f)
+    orb(Color(0xFFFF4FD8), w * (0.18f + 0.10f * sin(a + 3f)), h * (0.62f + 0.04f * cos(a + 1f)), w * 0.90f, 0.30f)
+    orb(Color(0xFF3B6BFF), w * (0.85f + 0.07f * sin(a + 4f)), h * (0.92f + 0.03f * cos(a)), w * 0.95f, 0.34f)
     val step = 56.dp.toPx()
-    val line = Color.White.copy(alpha = 0.05f)
+    val line = Color.White.copy(alpha = 0.03f)
     var x = 0f
     while (x < w) {
         drawLine(line, Offset(x, 0f), Offset(x, h), 1.5f)
@@ -264,7 +264,7 @@ fun Glass(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val m = if (onClick != null) modifier.clickable(onClick = onClick) else modifier
-    GlassSurface(m, radius, Color.White.copy(alpha = if (strong) 0.10f else 0.05f)) {
+    GlassSurface(m, radius, Color.White.copy(alpha = if (strong) 0.04f else 0.02f)) {
         Column(Modifier.padding(18.dp), content = content)
     }
 }
@@ -278,7 +278,7 @@ fun GlassButton(text: String, modifier: Modifier = Modifier, primary: Boolean = 
         animationSpec = spring(dampingRatio = 0.55f, stiffness = 500f),
         label = "press",
     )
-    val tint = if (primary) Color(0xFF5B7BFF).copy(alpha = 0.42f) else Color.White.copy(alpha = if (pressed) 0.16f else 0.06f)
+    val tint = if (primary) Color(0xFF4F6FF0).copy(alpha = 0.36f) else Color.White.copy(alpha = if (pressed) 0.10f else 0.03f)
     GlassSurface(
         modifier
             .graphicsLayer {
@@ -342,12 +342,12 @@ fun GField(
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
             focusedBorderColor = Color.White.copy(alpha = 0.75f),
-            unfocusedBorderColor = Color.White.copy(alpha = 0.22f),
-            focusedLabelColor = Color.White.copy(alpha = 0.85f),
-            unfocusedLabelColor = Color.White.copy(alpha = 0.55f),
+            unfocusedBorderColor = Color.White.copy(alpha = 0.34f),
+            focusedLabelColor = Color.White,
+            unfocusedLabelColor = Color.White.copy(alpha = 0.78f),
             cursorColor = Color.White,
-            focusedContainerColor = Color.White.copy(alpha = 0.08f),
-            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+            focusedContainerColor = Color.Black.copy(alpha = 0.25f),
+            unfocusedContainerColor = Color.Black.copy(alpha = 0.20f),
         ),
     )
 }
