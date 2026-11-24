@@ -6,7 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class Holding(val code: String, val name: String, val shares: Long, val avg: Double) {
-    val key: String get() = if (code.isNotEmpty()) code else name
+    val key: String get() = name.ifEmpty { code }
     val title: String
         get() = if (code.isNotEmpty() && name.isNotEmpty()) "$name $code" else name.ifEmpty { code }
 }

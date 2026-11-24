@@ -33,6 +33,8 @@ import androidx.compose.ui.window.Dialog
 val Accent = Color(0xFF8FB5FF)
 val Good = Color(0xFF3ECF8E)
 val Bad = Color(0xFFFF6B64)
+val Up = Color(0xFFFF5A64)   // 台股：漲 = 紅
+val Down = Color(0xFF2ED47A) // 台股：跌 = 綠
 
 /** 黑底 + 幾團柔和的彩色光暈，讓玻璃卡片有東西可以折射。 */
 @Composable

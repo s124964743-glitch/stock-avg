@@ -44,12 +44,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private val tick = mutableIntStateOf(0)
+    private val resumed = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +65,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 Surface(color = Color.Black, contentColor = Color.White) {
-                    GlassBackground { App(tick.intValue) }
+                    GlassBackground { App(tick.intValue, resumed.value) }
                 }
             }
         }
@@ -69,7 +73,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        resumed.value = true
         tick.intValue++
+    }
+
+    override fun onPause() {
+        super.onPause()
+        resumed.value = false
     }
 }
 
@@ -79,7 +89,7 @@ private fun f0(v: Double) = String.format(Locale.US, "%,.0f", v)
 private fun plain(v: Double) = if (v % 1.0 == 0.0) v.toLong().toString() else v.toString()
 
 @Composable
-fun App(tick: Int) {
+fun App(tick: Int, resumed: Boolean) {
     val ctx = LocalContext.current
     val clip = LocalClipboardManager.current
     val st by ImportBus.state.collectAsState()
@@ -92,7 +102,7 @@ fun App(tick: Int) {
     var p1 by rememberSaveable { mutableStateOf("") }
     var s1 by rememberSaveable { mutableStateOf("") }
     var tgt by rememberSaveable { mutableStateOf("") }
-    var feeOn by rememberSaveable { mutableStateOf(false) }
+    var feeOn by rememberSaveable { mutableStateOf(true) }
     var disc by rememberSaveable { mutableStateOf("6") }
 
     var dlg by remember { mutableStateOf("") }
@@ -101,8 +111,13 @@ fun App(tick: Int) {
     var addShares by remember { mutableStateOf("") }
     var addAvg by remember { mutableStateOf("") }
     var pickList by remember { mutableStateOf(emptyList<AppInfo>()) }
+    var prices by remember { mutableStateOf(emptyMap<String, Quotes.Quote>()) }
+    var qErr by remember { mutableStateOf<String?>(null) }
+    var open by remember { mutableStateOf(Quotes.marketOpen()) }
+    var follow by rememberSaveable { mutableStateOf(true) }
 
     fun pick(h: Holding) {
+        if (selKey != h.key) follow = true
         selKey = h.key
         s0 = h.shares.toString()
         a0 = plain(h.avg)
@@ -125,6 +140,43 @@ fun App(tick: Int) {
         } else if (st is ImportState.Failed) {
             dlg = "failed"
         }
+    }
+
+    // 名稱 → 股票代號（只需要做一次，結果會存起來）
+    LaunchedEffect(holdings.map { it.key to it.code }) {
+        if (holdings.any { it.code.isEmpty() }) {
+            val cur = holdings
+            val res = withContext(Dispatchers.IO) {
+                try { Quotes.resolve(ctx, cur) } catch (e: Exception) { cur }
+            }
+            if (res.map { it.code } != cur.map { it.code }) {
+                Store.save(ctx, res)
+                holdings = res
+            }
+        }
+    }
+
+    // 每秒查詢持股最新即時價（盤後放慢，App 在背景時暫停）
+    val codesKey = holdings.map { it.code }.joinToString(",")
+    LaunchedEffect(resumed, codesKey) {
+        val codes = holdings.map { it.code }.filter { it.isNotEmpty() }.distinct()
+        if (!resumed || codes.isEmpty()) return@LaunchedEffect
+        while (true) {
+            val t0 = System.currentTimeMillis()
+            val res = withContext(Dispatchers.IO) { Quotes.fetch(codes) }
+            if (res.map.isNotEmpty()) prices = prices + res.map
+            qErr = res.err
+            open = Quotes.marketOpen()
+            val interval = if (open) 1000L else 15000L
+            delay(maxOf(250L, interval - (System.currentTimeMillis() - t0)))
+        }
+    }
+
+    // 買進價格跟隨即時價（按不按試算都一樣，隨時更新）
+    val selH = holdings.firstOrNull { it.key == selKey }
+    val live = selH?.let { prices[it.code] }
+    LaunchedEffect(live?.price, follow, selKey) {
+        if (follow && live != null) p1 = plain(live.price)
     }
 
     fun startImport() {
@@ -228,6 +280,14 @@ fun App(tick: Int) {
                             color = if (sel) Accent else Color.White,
                         )
                         Text("${String.format(Locale.US, "%,d", h.shares)} 股　均價 ${f2(h.avg)}", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                        val q = prices[h.code]
+                        if (q != null && h.avg > 0) {
+                            val pct = (q.price - h.avg) / h.avg * 100
+                            Text(
+                                "現價 ${f2(q.price)}　" + (if (pct >= 0) "+" else "−") + String.format(Locale.US, "%.2f", Math.abs(pct)) + "%",
+                                color = if (pct >= 0) Up else Down, fontSize = 13.sp,
+                            )
+                        }
                     }
                     Text("✕", color = Color.White.copy(alpha = 0.45f), fontSize = 16.sp,
                         modifier = Modifier.clickable { delKey = h.key; dlg = "del" }.padding(10.dp))
@@ -245,8 +305,30 @@ fun App(tick: Int) {
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GField("買進價格", p1, { p1 = it }, Modifier.weight(1f))
+                GField("買進價格", p1, { p1 = it; follow = false }, Modifier.weight(1f))
                 GField("買進股數", s1, { s1 = it }, Modifier.weight(1f), KeyboardType.Number)
+            }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        follow = !follow
+                        if (follow && live != null) p1 = plain(live.price)
+                    }
+                    .padding(top = 8.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val tail = when {
+                    live != null -> "　" + f2(live.price) + (if (live.time.isNotEmpty()) "（${live.time}）" else "") +
+                        (if (!open) " 盤後" else "")
+                    selH != null && selH.code.isEmpty() -> "　找不到這檔的股票代號"
+                    qErr != null -> "　連線中…（$qErr）"
+                    else -> "　取得中…"
+                }
+                Text(
+                    (if (follow) "● 跟隨即時價" else "○ 手動價格（點此改回跟隨即時價）") + tail,
+                    color = if (follow) Good else Color.White.copy(alpha = 0.6f), fontSize = 13.sp,
+                )
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("手續費算進成本", modifier = Modifier.weight(1f), fontSize = 14.sp)
@@ -334,7 +416,7 @@ fun App(tick: Int) {
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text("本 App 沒有網路權限，持股資料只存在這支手機。", color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp)
+            Text("持股資料只存在這支手機；網路只用來查即時股價（只送出股票代號）。", color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp)
         }
         Spacer(Modifier.height(20.dp))
     }

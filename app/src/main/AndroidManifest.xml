@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 查詢已安裝的桌面 App，用來找到「投資先生」。本 App 沒有網路權限，資料只存在手機裡。 -->
+    <!-- 只用來查即時股價（只送出股票代號），持股資料不會上傳。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 查詢已安裝的桌面 App，用來找到「投資先生」。 -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
