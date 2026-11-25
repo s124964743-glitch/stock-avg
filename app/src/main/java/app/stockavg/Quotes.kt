@@ -42,13 +42,13 @@ object Quotes {
         }
     }
 
-    /** 台股盤中（平日 08:30～13:40）每秒查，其餘時間 15 秒查一次。 */
+    /** 台股盤中與盤後零股（平日 08:30～14:35）每秒查，其餘時間 15 秒查一次。 */
     fun marketOpen(): Boolean {
         val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Taipei"))
         val dow = cal.get(Calendar.DAY_OF_WEEK)
         if (dow == Calendar.SATURDAY || dow == Calendar.SUNDAY) return false
         val m = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
-        return m in (8 * 60 + 30)..(13 * 60 + 40)
+        return m in (8 * 60 + 30)..(14 * 60 + 35)
     }
 
     fun fetch(codes: List<String>): FetchResult {
@@ -62,7 +62,7 @@ object Quotes {
             }
             // 不知道是上市還是上櫃，兩種都問，只會回傳存在的那個
             val ex = codes.flatMap { listOf("tse_$it.tw", "otc_$it.tw") }.joinToString("%7C")
-            val body = http("https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=$ex&json=1&delay=0&_=${System.currentTimeMillis()}")
+            val body = http("https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=$ex&json=1&delay=0&_=${System.currentTimeMillis()}", timeoutMs = 2500)
             val arr = JSONObject(body).optJSONArray("msgArray") ?: JSONArray()
             val out = HashMap<String, Quote>()
             for (i in 0 until arr.length()) {

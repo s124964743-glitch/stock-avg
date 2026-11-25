@@ -114,6 +114,7 @@ fun App(tick: Int, resumed: Boolean) {
     var prices by remember { mutableStateOf(emptyMap<String, Quotes.Quote>()) }
     var qErr by remember { mutableStateOf<String?>(null) }
     var open by remember { mutableStateOf(Quotes.marketOpen()) }
+    var lastOk by remember { mutableStateOf(0L) }
     var follow by rememberSaveable { mutableStateOf(true) }
 
     fun pick(h: Holding) {
@@ -162,11 +163,14 @@ fun App(tick: Int, resumed: Boolean) {
         while (true) {
             val t0 = System.currentTimeMillis()
             val res = withContext(Dispatchers.IO) { Quotes.fetch(codes) }
-            if (res.map.isNotEmpty()) prices = prices + res.map
+            if (res.map.isNotEmpty()) {
+                prices = prices + res.map
+                lastOk = System.currentTimeMillis()
+            }
             qErr = res.err
             open = Quotes.marketOpen()
             val interval = if (open) 1000L else 15000L
-            delay(maxOf(250L, interval - (System.currentTimeMillis() - t0)))
+            delay(maxOf(50L, interval - (System.currentTimeMillis() - t0)))
         }
     }
 
@@ -308,7 +312,8 @@ fun App(tick: Int, resumed: Boolean) {
             ) {
                 val tail = when {
                     live != null -> "　" + f2(live.price) + (if (live.time.isNotEmpty()) "（${live.time}）" else "") +
-                        (if (!open) " 盤後" else "")
+                        (if (!open) " 盤後" else "") +
+                        (if (lastOk > 0) "・更新 " + SimpleDateFormat("HH:mm:ss", Locale.TAIWAN).format(Date(lastOk)) else "")
                     selH != null && selH.code.isEmpty() -> "　找不到這檔的股票代號"
                     qErr != null -> "　連線中…（$qErr）"
                     else -> "　取得中…"
